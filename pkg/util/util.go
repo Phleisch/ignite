@@ -4,18 +4,17 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"syscall"
 	"time"
-	"io"
-
 
 	"github.com/goombaio/namegenerator"
+	"github.com/rjeczalik/notify"
 	log "github.com/sirupsen/logrus"
 	"github.com/weaveworks/ignite/pkg/constants"
-	"github.com/rjeczalik/notify"
 	//"github.com/containerd/fifo"
 	//"golang.org/x/net/context"
 )
@@ -222,7 +221,7 @@ func NamedPipeWatcher(pipePath string, filePath string) {
 	// read from, making reads impossible
 	notify.Watch(pipePath, c, notify.Write|notify.Remove)
 
-	loop:
+loop:
 	for {
 		// ...waiting for an event to be passed.
 		e = <-c

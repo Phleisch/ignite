@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+	"runtime"
 
 	"github.com/firecracker-microvm/firecracker-go-sdk"
 	models "github.com/firecracker-microvm/firecracker-go-sdk/client/models"
@@ -21,6 +22,7 @@ import (
 
 // ExecuteFirecracker executes the firecracker process using the Go SDK
 func ExecuteFirecracker(vm *api.VM, dhcpIfaces []DHCPInterface) error {
+	log.Warnf("entering firecrcker")
 	drivePath := vm.SnapshotDev()
 
 	networkInterfaces := make([]firecracker.NetworkInterface, 0, len(dhcpIfaces))
@@ -133,6 +135,16 @@ func ExecuteFirecracker(vm *api.VM, dhcpIfaces []DHCPInterface) error {
 	defer m.StopVMM()
 
 	installSignalHandlers(ctx, m)
+
+        // Create file names for persistent files to save FIFO stream to
+        logSocketPathPersistent := path.Join(vm.ObjectPath(), constants.LOG_FIFO_PERSISTENT)
+        metricsSocketPathPersistent := path.Join(vm.ObjectPath(), constants.METRICS_FIFO_PERSISTENT)
+
+        runtime.GOMAXPROCS(3)
+
+	// start goroutines to watch NamedPipe and cp any writes to persistent logs
+        go util.NamedPipeWatcher(logSocketPath, logSocketPathPersistent)
+        go util.NamedPipeWatcher(metricsSocketPath, metricsSocketPathPersistent)
 
 	// wait for the VMM to exit
 	if err := m.Wait(ctx); err != nil {

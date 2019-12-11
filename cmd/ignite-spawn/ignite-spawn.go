@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
+	//"os"
 	"path"
 
 	log "github.com/sirupsen/logrus"
@@ -11,7 +11,7 @@ import (
 	"github.com/weaveworks/ignite/pkg/apis/ignite/scheme"
 	"github.com/weaveworks/ignite/pkg/constants"
 	"github.com/weaveworks/ignite/pkg/container"
-	dmcleanup "github.com/weaveworks/ignite/pkg/dmlegacy/cleanup"
+	//dmcleanup "github.com/weaveworks/ignite/pkg/dmlegacy/cleanup"
 	"github.com/weaveworks/ignite/pkg/prometheus"
 )
 
@@ -59,10 +59,10 @@ func StartVM(vm *api.VM) error {
 	defer patchStopped(vm)
 
 	// Remove the snapshot overlay post-run, which also removes the detached backing loop devices
-	defer dmcleanup.DeactivateSnapshot(vm)
+	//defer dmcleanup.DeactivateSnapshot(vm)
 
 	// Remove the Prometheus socket post-run
-	defer os.Remove(metricsSocket)
+	//defer os.Remove(metricsSocket)
 
 	// Execute Firecracker
 	if err = container.ExecuteFirecracker(vm, dhcpIfaces); err != nil {

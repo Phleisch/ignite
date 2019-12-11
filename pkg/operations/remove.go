@@ -3,6 +3,7 @@ package operations
 import (
 	"fmt"
 	"os"
+	"path"
 
 	log "github.com/sirupsen/logrus"
 	api "github.com/weaveworks/ignite/pkg/apis/ignite"
@@ -12,6 +13,7 @@ import (
 	"github.com/weaveworks/ignite/pkg/providers"
 	"github.com/weaveworks/ignite/pkg/runtime"
 	"github.com/weaveworks/ignite/pkg/util"
+	"github.com/weaveworks/ignite/pkg/constants"
 )
 
 const (
@@ -42,6 +44,9 @@ func CleanupVM(vm *api.VM) error {
 	// Remove the VM container if it exists
 	// TODO should this function return a proper error?
 	RemoveVMContainer(inspectResult)
+
+	metricsSocket := path.Join(vm.ObjectPath(), constants.PROMETHEUS_SOCKET)
+	os.Remove(metricsSocket)
 
 	// After remove the VM container, and the SnapshotDev still there
 	if _, err := os.Stat(vm.SnapshotDev()); err == nil {

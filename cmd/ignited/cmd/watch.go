@@ -1,17 +1,20 @@
 package cmd
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
 	"sync"
-	"time"
+	"path"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/weaveworks/gitops-toolkit/pkg/filter"
 	"github.com/weaveworks/ignite/pkg/providers"
 	"github.com/weaveworks/ignite/pkg/operations"
+	"github.com/rjeczalik/notify"
+	"github.com/weaveworks/ignite/pkg/constants"
 )
 
 func NewCmdWatch(out io.Writer) *cobra.Command {
@@ -37,44 +40,45 @@ func NewCmdWatch(out io.Writer) *cobra.Command {
 			signalChannel := make(chan os.Signal, 1)
 			signal.Notify(signalChannel, os.Interrupt)
 
-			ticker := time.NewTicker(100 * time.Millisecond)
+			path := path.Join(vm.ObjectPath(), constants.LOG_FIFO)
+
+			c := make(chan notify.EventInfo, 1)
+			notify.Watch(path, c, notify.Remove)
 
 			// goroutine to check status of VM every 100 ms
 			// cleanup VM if VM is no longer running
 			go func() {
-				log.Infof("Watching %s...", vmName)
+			    log.Infof("Watching %s...", vmName)
 				for {
 					select {
-					case <- ticker.C:
-						start := time.Now()
+					case e := <-c:
+						if e.Event() != notify.Remove {
+							break
+						}
 						vm, err = providers.Client.VMs().Find(filter.NewIDNameFilter(vmName))
-						log.Infof("Took %s", time.Since(start))
 						if vm.Running() {
-							log.Infof("VM is running")
+							log.Infof("Unexpected VM is still running")
 							break
 						}
 
-						log.Infof("VM is stopped, removing...")
-						if err = operations.DeleteVM(providers.Client, vm); err != nil {
-						//if err = operations.CleanupVM(vm); err != nil {
-								log.Fatalf("Error deleting VM:, %s", err)
+						//if err = operations.DeleteVM(providers.Client, vm); err != nil {
+						c := providers.Client
+						if err := c.VMs().Delete(vm.GetUID()); err != nil {
+							//log.Infof("Caught err %v", err)
 						}
-						ticker.Stop()
+
+						if err = operations.CleanupVM(vm); err != nil {
+							log.Fatalf("%s", fmt.Errorf("Error deleting VM: %v", err))
+						}
 						endWaiter.Done()
 						return
 					case <- signalChannel:
-						ticker.Stop()
+						log.Infof("ctrl-c")
 						endWaiter.Done()
 						return
 					}
 				}
 			}()
-
-			//go func() {
-			//	<-quit
-			//	<-signalChannel
-			//	endWaiter.Done()
-			//}()
 
 			endWaiter.Wait()
 		},
